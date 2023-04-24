@@ -285,6 +285,9 @@
     <!-- Title for set firefox as default browser screen.
         The first parameter is the name of the app defined in app_name (for example: Fenix) -->
     <string name="juno_onboarding_default_browser_title">Make %s your go-to browser</string>
+    <!-- Title for set firefox as default browser screen.
+        Note: The word 'Firefox' should not be translated -->
+    <string name="juno_onboarding_default_browser_title_no_args" tools:ignore="UnusedResources">Make Firefox your go-to browser</string>
     <!-- Description for set firefox as default browser screen.
         The first parameter is the Firefox brand name.
         The second parameter is the string with key "juno_onboarding_default_browser_description_link_text". -->
