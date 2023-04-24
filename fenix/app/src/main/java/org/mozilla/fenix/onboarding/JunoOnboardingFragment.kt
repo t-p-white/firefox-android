@@ -26,9 +26,10 @@ import org.mozilla.fenix.ext.hideToolbar
 import org.mozilla.fenix.ext.nav
 import org.mozilla.fenix.ext.openSetDefaultBrowserOption
 import org.mozilla.fenix.ext.requireComponents
-import org.mozilla.fenix.onboarding.view.JunoOnboardingPageType
+import org.mozilla.fenix.nimbus.FxNimbus
+import org.mozilla.fenix.nimbus.OnboardingCardData
+import org.mozilla.fenix.nimbus.OnboardingCardType
 import org.mozilla.fenix.onboarding.view.JunoOnboardingScreen
-import org.mozilla.fenix.onboarding.view.telemetrySequenceId
 import org.mozilla.fenix.settings.SupportUtils
 import org.mozilla.fenix.theme.FirefoxTheme
 
@@ -38,8 +39,23 @@ import org.mozilla.fenix.theme.FirefoxTheme
 class JunoOnboardingFragment : Fragment() {
 
     private val fenixOnboarding by lazy { FenixOnboarding(requireContext()) }
-    private val onboardingPageTypeList by lazy { onboardingPageTypeList(requireContext()) }
+    private val onboardingCardsToDisplay by lazy { onboardingCardsToDisplay(requireContext()) }
     private val telemetryRecorder by lazy { JunoOnboardingTelemetryRecorder() }
+    private val onboardingCardsTelemetrySequenceId by lazy { onboardingCardsToDisplay.telemetrySequenceId() }
+
+    private val defaultBrowserCard by lazy {
+        onboardingCardsToDisplay.first { it.cardType == OnboardingCardType.DEFAULT_BROWSER }
+    }
+    private val syncCard by lazy {
+        onboardingCardsToDisplay.first { it.cardType == OnboardingCardType.SYNC_SIGN_IN }
+    }
+
+    /**
+     * The notification card may not be required.
+     */
+    private val notificationCard by lazy {
+        onboardingCardsToDisplay.find { it.cardType == OnboardingCardType.NOTIFICATION_PERMISSION }
+    }
 
     @SuppressLint("SourceLockedOrientationActivity")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -80,18 +96,18 @@ class JunoOnboardingFragment : Fragment() {
     private fun ScreenContent() {
         val context = LocalContext.current
         JunoOnboardingScreen(
-            onboardingPageTypeList = onboardingPageTypeList,
+            onboardingCardsToDisplay = onboardingCardsToDisplay,
             onMakeFirefoxDefaultClick = {
                 activity?.openSetDefaultBrowserOption(useCustomTab = true)
                 telemetryRecorder.onSetToDefaultClick(
-                    sequenceId = onboardingPageTypeList.telemetrySequenceId(),
-                    pageType = JunoOnboardingPageType.DEFAULT_BROWSER,
+                    sequenceId = onboardingCardsTelemetrySequenceId,
+                    sequencePosition = defaultBrowserCard.telemetry.sequencePosition,
                 )
             },
             onSkipDefaultClick = {
                 telemetryRecorder.onSkipSetToDefaultClick(
-                    onboardingPageTypeList.telemetrySequenceId(),
-                    JunoOnboardingPageType.DEFAULT_BROWSER,
+                    onboardingCardsTelemetrySequenceId,
+                    defaultBrowserCard.telemetry.sequencePosition,
                 )
             },
             onPrivacyPolicyClick = { url ->
@@ -102,8 +118,8 @@ class JunoOnboardingFragment : Fragment() {
                     ),
                 )
                 telemetryRecorder.onPrivacyPolicyClick(
-                    onboardingPageTypeList.telemetrySequenceId(),
-                    JunoOnboardingPageType.DEFAULT_BROWSER,
+                    onboardingCardsTelemetrySequenceId,
+                    defaultBrowserCard.telemetry.sequencePosition,
                 )
             },
             onSignInButtonClick = {
@@ -112,42 +128,44 @@ class JunoOnboardingFragment : Fragment() {
                     directions = JunoOnboardingFragmentDirections.actionGlobalTurnOnSync(),
                 )
                 telemetryRecorder.onSyncSignInClick(
-                    sequenceId = onboardingPageTypeList.telemetrySequenceId(),
-                    pageType = JunoOnboardingPageType.SYNC_SIGN_IN,
+                    sequenceId = onboardingCardsTelemetrySequenceId,
+                    sequencePosition = syncCard.telemetry.sequencePosition,
                 )
             },
             onSkipSignInClick = {
                 telemetryRecorder.onSkipSignInClick(
-                    onboardingPageTypeList.telemetrySequenceId(),
-                    JunoOnboardingPageType.SYNC_SIGN_IN,
+                    onboardingCardsTelemetrySequenceId,
+                    syncCard.telemetry.sequencePosition,
                 )
             },
             onNotificationPermissionButtonClick = {
-                requireComponents.notificationsDelegate.requestNotificationPermission()
-                telemetryRecorder.onNotificationPermissionClick(
-                    sequenceId = onboardingPageTypeList.telemetrySequenceId(),
-                    pageType = JunoOnboardingPageType.NOTIFICATION_PERMISSION,
-                )
+                notificationCard?.let {
+                    requireComponents.notificationsDelegate.requestNotificationPermission()
+                    telemetryRecorder.onNotificationPermissionClick(
+                        sequenceId = onboardingCardsTelemetrySequenceId,
+                        sequencePosition = it.telemetry.sequencePosition,
+                    )
+                }
             },
             onSkipNotificationClick = {
-                telemetryRecorder.onSkipTurnOnNotificationsClick(
-                    onboardingPageTypeList.telemetrySequenceId(),
-                    JunoOnboardingPageType.NOTIFICATION_PERMISSION,
-                )
+                notificationCard?.let {
+                    telemetryRecorder.onSkipTurnOnNotificationsClick(
+                        onboardingCardsTelemetrySequenceId,
+                        it.telemetry.sequencePosition,
+                    )
+                }
             },
-            onFinish = { pageType ->
-                onFinish(onboardingPageTypeList.telemetrySequenceId(), pageType)
-            },
-            onImpression = { pageType ->
+            onFinish = { onFinish(onboardingCardsTelemetrySequenceId, it) },
+            onImpression = {
                 telemetryRecorder.onImpression(
-                    onboardingPageTypeList.telemetrySequenceId(),
-                    pageType,
+                    onboardingCardsTelemetrySequenceId,
+                    it,
                 )
             },
         )
     }
 
-    private fun onFinish(sequenceId: String, pageType: JunoOnboardingPageType) {
+    private fun onFinish(sequenceId: String, onboardingCard: OnboardingCardData) {
         fenixOnboarding.finish()
         findNavController().nav(
             id = R.id.junoOnboardingFragment,
@@ -155,23 +173,35 @@ class JunoOnboardingFragment : Fragment() {
         )
         telemetryRecorder.onOnboardingComplete(
             sequenceId = sequenceId,
-            pageType = pageType,
+            sequencePosition = onboardingCard.telemetry.sequencePosition,
         )
     }
 
-    private fun onboardingPageTypeList(context: Context): List<JunoOnboardingPageType> =
-        buildList {
-            add(JunoOnboardingPageType.DEFAULT_BROWSER)
-            add(JunoOnboardingPageType.SYNC_SIGN_IN)
-            if (shouldShowNotificationPage(context)) {
-                add(JunoOnboardingPageType.NOTIFICATION_PERMISSION)
+    private fun onboardingCardsToDisplay(context: Context): List<OnboardingCardData> {
+        val allCards: Map<String, OnboardingCardData> =
+            FxNimbus.features.junoOnboarding.value().cards
+        return allCards.values
+            .filter {
+                if (it.cardType == OnboardingCardType.NOTIFICATION_PERMISSION) {
+                    shouldShowNotificationPage(context)
+                } else {
+                    true
+                }
             }
-        }
+            .sortedBy { it.ordering }
+    }
 
     private fun shouldShowNotificationPage(context: Context) =
-        !NotificationManagerCompat.from(context.applicationContext).areNotificationsEnabledSafe() &&
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+        !NotificationManagerCompat.from(context.applicationContext)
+            .areNotificationsEnabledSafe() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
 
-    private fun isNotATablet() =
-        !resources.getBoolean(R.bool.tablet)
+    private fun isNotATablet() = !resources.getBoolean(R.bool.tablet)
+
+    /**
+     * Helper function for telemetry that maps List<OnboardingCardData> to a string of page names
+     * separated by an underscore.
+     * e.g. [DEFAULT_BROWSER, SYNC_SIGN_IN] will be mapped to "default_sync".
+     */
+    private fun List<OnboardingCardData>.telemetrySequenceId(): String =
+        joinToString(separator = "_") { it.telemetry.id }
 }

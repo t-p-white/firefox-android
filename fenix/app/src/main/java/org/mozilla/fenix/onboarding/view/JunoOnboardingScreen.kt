@@ -31,12 +31,14 @@ import mozilla.components.lib.state.ext.observeAsComposableState
 import org.mozilla.fenix.components.components
 import org.mozilla.fenix.compose.PagerIndicator
 import org.mozilla.fenix.compose.annotation.LightDarkPreview
+import org.mozilla.fenix.nimbus.FxNimbus
+import org.mozilla.fenix.nimbus.OnboardingCardData
 import org.mozilla.fenix.theme.FirefoxTheme
 
 /**
  * A screen for displaying juno onboarding.
  *
- * @param onboardingPageTypeList List of pages to be displayed in onboarding pager ui.
+ * @param onboardingCardsToDisplay List of pages to be displayed in onboarding pager ui.
  * @param onMakeFirefoxDefaultClick Invoked when positive button on default browser page is clicked.
  * @param onSkipDefaultClick Invoked when negative button on default browser page is clicked.
  * @param onPrivacyPolicyClick Invoked when the privacy policy link text is clicked.
@@ -51,7 +53,7 @@ import org.mozilla.fenix.theme.FirefoxTheme
 @Composable
 @Suppress("LongParameterList")
 fun JunoOnboardingScreen(
-    onboardingPageTypeList: List<JunoOnboardingPageType>,
+    onboardingCardsToDisplay: List<OnboardingCardData>,
     onMakeFirefoxDefaultClick: () -> Unit,
     onSkipDefaultClick: () -> Unit,
     onPrivacyPolicyClick: (url: String) -> Unit,
@@ -59,8 +61,8 @@ fun JunoOnboardingScreen(
     onSkipSignInClick: () -> Unit,
     onNotificationPermissionButtonClick: () -> Unit,
     onSkipNotificationClick: () -> Unit,
-    onFinish: (pageType: JunoOnboardingPageType) -> Unit,
-    onImpression: (pageType: JunoOnboardingPageType) -> Unit,
+    onFinish: (pageType: OnboardingCardData) -> Unit,
+    onImpression: (pageType: OnboardingCardData) -> Unit,
 ) {
     val coroutineScope = rememberCoroutineScope()
     val pagerState = rememberPagerState()
@@ -75,7 +77,7 @@ fun JunoOnboardingScreen(
 
     val scrollToNextPageOrDismiss: () -> Unit = {
         if (pagerState.currentPage == pagerState.pageCount - 1) {
-            onFinish(onboardingPageTypeList[pagerState.currentPage])
+            onFinish(onboardingCardsToDisplay[pagerState.currentPage])
         } else {
             coroutineScope.launch {
                 pagerState.animateScrollToPage(pagerState.currentPage + 1)
@@ -91,12 +93,12 @@ fun JunoOnboardingScreen(
 
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.currentPage }.collect { page ->
-            onImpression(onboardingPageTypeList[page])
+            onImpression(onboardingCardsToDisplay[page])
         }
     }
 
     JunoOnboardingContent(
-        onboardingPageTypeList = onboardingPageTypeList,
+        onboardingPageTypeList = onboardingCardsToDisplay,
         pagerState = pagerState,
         onMakeFirefoxDefaultClick = {
             scrollToNextPageOrDismiss()
@@ -131,7 +133,7 @@ fun JunoOnboardingScreen(
 @Composable
 @Suppress("LongParameterList")
 private fun JunoOnboardingContent(
-    onboardingPageTypeList: List<JunoOnboardingPageType>,
+    onboardingPageTypeList: List<OnboardingCardData>,
     pagerState: PagerState,
     onMakeFirefoxDefaultClick: () -> Unit,
     onMakeFirefoxDefaultSkipClick: () -> Unit,
@@ -152,14 +154,14 @@ private fun JunoOnboardingContent(
         HorizontalPager(
             count = onboardingPageTypeList.size,
             state = pagerState,
-            key = { onboardingPageTypeList[it] },
+            key = { onboardingPageTypeList[it].cardType },
             modifier = Modifier
                 .weight(1f)
                 .nestedScroll(nestedScrollConnection),
         ) { pageIndex ->
             val onboardingPageType = onboardingPageTypeList[pageIndex]
             val pageState = mapToOnboardingPageState(
-                onboardingPageType = onboardingPageType,
+                onboardingCardData = onboardingPageType,
                 onMakeFirefoxDefaultClick = onMakeFirefoxDefaultClick,
                 onMakeFirefoxDefaultSkipClick = onMakeFirefoxDefaultSkipClick,
                 onPrivacyPolicyClick = onPrivacyPolicyClick,
@@ -210,11 +212,7 @@ private class DisableForwardSwipeNestedScrollConnection(
 private fun JunoOnboardingScreenPreview() {
     FirefoxTheme {
         JunoOnboardingContent(
-            onboardingPageTypeList = listOf(
-                JunoOnboardingPageType.DEFAULT_BROWSER,
-                JunoOnboardingPageType.SYNC_SIGN_IN,
-                JunoOnboardingPageType.NOTIFICATION_PERMISSION,
-            ),
+            onboardingPageTypeList = FxNimbus.features.junoOnboarding.value().cards.values.toList(),
             pagerState = PagerState(0),
             onMakeFirefoxDefaultClick = {},
             onMakeFirefoxDefaultSkipClick = {},

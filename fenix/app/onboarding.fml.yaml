@@ -13,31 +13,37 @@ features:
         description: Collection of user facing onboarding 'views'.
         type: Map<String, OnboardingCardData>
         default:
-            default-browser:
-              card-type: default-browser
-              telemetry-id: "default"
-              title: juno_onboarding_default_browser_title_no_args
-              ordering: 10
-              primary-button: juno_onboarding_default_browser_positive_button
-              secondary-button: juno_onboarding_default_browser_negative_button
+          default-browser:
+            card-type: default-browser
+            telemetry:
+              id: "default"
+              sequence-position: "1"
+            title: juno_onboarding_default_browser_title_no_args
+            ordering: 10
+            primary-button: juno_onboarding_default_browser_positive_button
+            secondary-button: juno_onboarding_default_browser_negative_button
 
-            sync-sign-in:
-              card-type: sync-sign-in
-              telemetry-id: "sync"
-              title: juno_onboarding_sign_in_title
-              body: juno_onboarding_sign_in_description
-              ordering: 20
-              primary-button: juno_onboarding_sign_in_positive_button
-              secondary-button: juno_onboarding_sign_in_negative_button
+          sync-sign-in:
+            card-type: sync-sign-in
+            telemetry:
+              id: "sync"
+              sequence-position: "2"
+            title: juno_onboarding_sign_in_title
+            body: juno_onboarding_sign_in_description
+            ordering: 20
+            primary-button: juno_onboarding_sign_in_positive_button
+            secondary-button: juno_onboarding_sign_in_negative_button
 
-            notification-permission:
-              card-type: notification-permission
-              telemetry-id: "notification"
-              title: juno_onboarding_enable_notifications_title
-              body: juno_onboarding_enable_notifications_description
-              ordering: 30
-              primary-button: juno_onboarding_enable_notifications_positive_button
-              secondary-button: juno_onboarding_enable_notifications_negative_button
+          notification-permission:
+            card-type: notification-permission
+            telemetry:
+              id: "notification"
+              sequence-position: "3"
+            title: juno_onboarding_enable_notifications_title
+            body: juno_onboarding_enable_notifications_description
+            ordering: 30
+            primary-button: juno_onboarding_enable_notifications_positive_button
+            secondary-button: juno_onboarding_enable_notifications_negative_button
 
     defaults:
       - channel: developer
@@ -57,11 +63,10 @@ objects:
         description: The type of the card.
         # This should never be defaulted.
         default: default-browser
-      telemetry-id:
-        type: String
-        description: Identifier for telemetry.
-        # This should never be defaulted.
-        default: ""
+      telemetry:
+        type: Telemetry
+        description: Telemetry data for the card.
+        default: {}
       title:
         type: Text
         description: The title text displayed to the user.
@@ -84,6 +89,20 @@ objects:
       secondary-button:
         type: Text
         description: The text to display on the secondary button.
+        # This should never be defaulted.
+        default: ""
+
+  Telemetry:
+    description: Data used for telemetry analysis.
+    fields:
+      id:
+        type: String
+        description: Identifier for the card.
+        # This should never be defaulted.
+        default: ""
+      sequence-position:
+        type: String
+        description: Position of the page in the onboarding flow.
         # This should never be defaulted.
         default: ""
 
